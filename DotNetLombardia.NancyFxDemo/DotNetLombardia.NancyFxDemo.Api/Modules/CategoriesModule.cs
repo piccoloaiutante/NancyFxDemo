@@ -12,85 +12,92 @@ namespace DotNetLombardia.NancyFxDemo.Api.Modules
     {
         private NorthwindEntities _db;
 
-        public CategoriesModule()
-            : base("api")
+        public CategoriesModule() : base("api")
         {
             SetupContext();
 
             Get[@"/Categories"] = r => _db.Categories;
-            Get[@"/Categories/{id}"] = r =>
+            
+            Get[@"/Categories/{id}"] = r => GetCategory(r);
+            
+            Put[@"/Categories/{id}"] = r => PutCategory(r);
+            
+            Post[@"/Categories"] = r => PostCategory(r);
+               
+            Delete[@"/Categories/{id}"] = r =>DeleteCategory(r);
+        }
+
+        private dynamic DeleteCategory(dynamic r)
+        {
+            var category = _db.Categories.Find((int)r.id);
+            if (category == null)
+            {
+                return HttpStatusCode.NotFound;
+            }
+
+            _db.Categories.Remove(category);
+
+            try
+            {
+                _db.SaveChanges();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return HttpStatusCode.NotFound;
+            }
+
+            return category;
+        }
+
+        private dynamic PostCategory(dynamic r)
+        {
+            var category = this.Bind<Categories>();
+
+            if (category.CategoryID > 0)
+            {
+                _db.Categories.Add(category);
+                _db.SaveChanges();
+                //TODO manca il link
+                return HttpStatusCode.Created;
+            }
+            else
+            {
+                return HttpStatusCode.BadRequest;
+            }
+        }
+
+        private dynamic PutCategory(dynamic r)
+        {
+            var category = this.Bind<Categories>();
+            if ((int)r.id == category.CategoryID)
+            {
+                _db.Entry(category).State = EntityState.Modified;
+
+                try
                 {
-                    var category = _db.Categories.Find((int)r.id);
-                    if (category == null)
-                    {
-                        return HttpStatusCode.NotFound;
-                    }
-                    return category;
-                };
-            Put[@"/Categories/{id}"] = r =>
+                    _db.SaveChanges();
+                }
+                catch (DbUpdateConcurrencyException)
                 {
-                    var category = this.Bind<Categories>();
-                    if (r.id == category.CategoryID)
-                    {
-                        _db.Entry(category).State = EntityState.Modified;
+                    return HttpStatusCode.NotFound;
+                }
 
-                        try
-                        {
-                            _db.SaveChanges();
-                        }
-                        catch (DbUpdateConcurrencyException)
-                        {
-                            return HttpStatusCode.NotFound;
-                        }
+                return HttpStatusCode.OK;
+            }
+            else
+            {
+                return HttpStatusCode.BadRequest;
+            }
+        }
 
-                        return HttpStatusCode.OK;
-                    }
-                    else
-                    {
-                        return HttpStatusCode.BadRequest;
-                    }
-                };
-
-            Post[@"/Categories"] = r =>
-                {
-                    var category = this.Bind<Categories>();
-
-                    if (category.CategoryID>0)
-                    {
-                        _db.Categories.Add(category);
-                        _db.SaveChanges();
-                        //TODO manca il link
-                        return HttpStatusCode.Created;
-                    }
-                    else
-                    {
-                        return HttpStatusCode.BadRequest;
-                    }
-                };
-            Delete[@"Categories/{id}"] = r =>
-                {
-                    Categories category = _db.Categories.Find((int)r.id);
-                    if (category == null)
-                    {
-                        return HttpStatusCode.NotFound;
-                    }
-
-                    _db.Categories.Remove(category);
-
-                    try
-                    {
-                        _db.SaveChanges();
-                    }
-                    catch (DbUpdateConcurrencyException)
-                    {
-                        return HttpStatusCode.NotFound;
-                    }
-
-                    return category;
-                };
-
-
-
+        private dynamic GetCategory(dynamic r)
+        {
+            var category = _db.Categories.Find((int) r.id);
+            if (category == null)
+            {
+                return HttpStatusCode.NotFound;
+            }
+            return category;
         }
 
         private void SetupContext()
