@@ -1,31 +1,49 @@
 ﻿using System;
 using System.Data;
 using System.Data.Entity.Infrastructure;
+using System.Linq;
 using DotNetLombardia.NancyFxDemo.Api.Models;
 using Nancy;
 using Nancy.Json;
 using Nancy.ModelBinding;
 
-namespace DotNetLombardia.NancyFxDemo.Api.Modules
+namespace DotNetLombardia.NancyFxDemo.Api.Nancy
 {
     public class CategoriesModule : NancyModule
     {
         private NorthwindEntities _db;
 
-        public CategoriesModule() : base("api")
+        public CategoriesModule(NorthwindEntities context)
+            : base("api")
         {
-            SetupContext();
+            SetupContext(context);
 
-            Get[@"/Categories"] = r => _db.Categories;
-            
+            //Before += ctx => OAuthChecker.CheckOAuth(ctx);
+
+            Get[@"/Categories"] = r => GetCategories();
+
             Get[@"/Categories/{id}"] = r => GetCategory(r);
-            
+
             Put[@"/Categories/{id}"] = r => PutCategory(r);
-            
+
             Post[@"/Categories"] = r => PostCategory(r);
-               
-            Delete[@"/Categories/{id}"] = r =>DeleteCategory(r);
+
+            Delete[@"/Categories/{id}"] = r => DeleteCategory(r);
         }
+
+        private dynamic GetCategories()
+        {
+            var query = _db.Categories.OrderBy(p => p.CategoryID).AsQueryable();
+            if (Request.Query.nameLike.HasValue)
+            {
+                string name=((string)Request.Query.nameLike);
+                query = query.Where(p => p.CategoryName.Contains(name));
+            }
+            if (Request.Query.Offset.HasValue) query = query.Skip((int) Request.Query.Offset);
+            if (Request.Query.Limit.HasValue) query = query.Take((int) Request.Query.Limit);
+            return query;
+        }
+
 
         private dynamic DeleteCategory(dynamic r)
         {
@@ -57,13 +75,10 @@ namespace DotNetLombardia.NancyFxDemo.Api.Modules
             {
                 _db.Categories.Add(category);
                 _db.SaveChanges();
-                //TODO manca il link
+                
                 return HttpStatusCode.Created;
             }
-            else
-            {
-                return HttpStatusCode.BadRequest;
-            }
+            return HttpStatusCode.BadRequest;
         }
 
         private dynamic PutCategory(dynamic r)
@@ -84,15 +99,12 @@ namespace DotNetLombardia.NancyFxDemo.Api.Modules
 
                 return HttpStatusCode.OK;
             }
-            else
-            {
-                return HttpStatusCode.BadRequest;
-            }
+            return HttpStatusCode.BadRequest;
         }
 
         private dynamic GetCategory(dynamic r)
         {
-            var category = _db.Categories.Find((int) r.id);
+            var category = _db.Categories.Find((int)r.id);
             if (category == null)
             {
                 return HttpStatusCode.NotFound;
@@ -100,9 +112,9 @@ namespace DotNetLombardia.NancyFxDemo.Api.Modules
             return category;
         }
 
-        private void SetupContext()
+        private void SetupContext(NorthwindEntities context)
         {
-            _db = new NorthwindEntities();
+            _db = context;
             _db.Configuration.ProxyCreationEnabled = false;
             JsonSettings.MaxJsonLength = Int32.MaxValue;
         }
